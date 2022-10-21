@@ -34,9 +34,9 @@ async function login(req, res){
     const secret = process.env.JWT_SECRET
     const config = { expiresIn: 60*60 }
     const isValid = loginSchema.validate({ email, password })
-    let userId
-
     const token = jwt.sign({ email, password }, secret, config)
+    let user
+    
 
     if (isValid.error) {
         return res.sendStatus(422)
@@ -45,7 +45,7 @@ async function login(req, res){
     try {
         const query = await connection.query('SELECT * FROM users WHERE email = $1;', [email])
         const isPasswordValid = bcrypt.compareSync(password, query.rows[0].password)
-        userId = query.rows[0].id
+        user = {...query.rows[0], token}
 
         if (!isPasswordValid) {
             return res.sendStatus(401)
@@ -57,8 +57,10 @@ async function login(req, res){
     }
 
     try {
-        const query = await connection.query('INSERT INTO sessions (token,"userId") VALUES ($1, $2);', [token, userId])
-        return res.send({token})
+        console.log(user)
+        const query = await connection.query('INSERT INTO sessions (token,"userId") VALUES ($1, $2);', [token, user.id])
+        console.log(user)
+        return res.send({user:user.id, name:user.name, username:user.username, image:user.image, token})
     } catch (error) {
         console.log(error)
         return res.status(500).send(error)
